@@ -49,6 +49,8 @@ type File struct {
 }
 
 func DirsHandler(w http.ResponseWriter, req *http.Request) {
+	// This should not be "*" unless we want everyone to access the API
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	path := filepath.Join(*rootPath, req.FormValue("path"))
 
 	fmt.Println("Received dir request for: ", path)
@@ -73,11 +75,13 @@ func DirsHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func FileHandler(w http.ResponseWriter, req *http.Request) {
+	_, filename := filepath.Split(req.FormValue("path"))
+	// This should not be "*" unless we want everyone to access the API
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprint("attachment; filename=\"", req.FormValue("path"), "\""))
+	w.Header().Set("Content-Disposition", fmt.Sprint("attachment; filename=\"", filename, "\""))
 	w.Header().Set("Content-Transfer-Encoding", "binary")
 
-	fmt.Printf("%#v\n", w.Header())
 	fmt.Println(*rootPath)
 
 	path := filepath.Join(*rootPath, req.FormValue("path"))
