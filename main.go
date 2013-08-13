@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 )
 
-var rootPath = flag.String("Root Folder", ".", "Root folder to share")
+var rootPath = flag.String("root", ".", "Root folder to share")
 
 type FileList struct {
 	Path string `json:"path"`
