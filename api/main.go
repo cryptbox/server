@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	c "cryptbox/server/common"
 )
 
 var rootPath = flag.String("root", ".", "Root folder to share")
@@ -39,7 +40,7 @@ func ListHandler(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	response := NewFileList(path)
+	response := c.NewFileList(path)
 	response.LoadFrom(dir)
 
 	bytes, err := json.Marshal(response)
