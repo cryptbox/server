@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,15 +13,15 @@ var rootPath = flag.String("root", ".", "Root folder to share")
 func main() {
 	flag.Parse()
 
-	if _, err := os.Stat(*rootPath); err != nil {
-		if os.IsNotExist(err) {
-			fmt.Println("Invalid root path: ", err)
-		}
+	log.SetFlags(log.Ltime)
+
+	info, err := os.Stat(*rootPath)
+	if os.IsNotExist(err) || ! info.IsDir() {
+			log.Fatal("Invalid root path:", *rootPath)
 	}
 
 	path, _ := filepath.Abs(*rootPath)
-	rootPath = &path
-	fmt.Println("Serving: ", path)
+	log.Println("Serving:", path)
 
 	log.Fatal(http.ListenAndServe(":8080", http.FileServer(http.Dir(*rootPath))))
 }

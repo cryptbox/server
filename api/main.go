@@ -26,7 +26,7 @@ func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func ListHandler(w http.ResponseWriter, r *http.Request) error {
 	path := filepath.Join(*rootPath, r.FormValue("path"))
 
-	fmt.Println("Received list request for: ", path)
+	log.Println("Received list request for:", path)
 
 	dir, err := os.Open(path)
 	if err != nil {
@@ -60,7 +60,7 @@ func ListHandler(w http.ResponseWriter, r *http.Request) error {
 func FileHandler(w http.ResponseWriter, r *http.Request) error {
 	path := filepath.Join(*rootPath, r.FormValue("path"))
 
-	fmt.Println("Received file request for: ", path)
+	log.Println("Received file request for:", path)
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -88,15 +88,15 @@ func FileHandler(w http.ResponseWriter, r *http.Request) error {
 func main() {
 	flag.Parse()
 
-	if _, err := os.Stat(*rootPath); err != nil {
-		if os.IsNotExist(err) {
-			fmt.Println("Invalid root path: ", err)
-		}
+	log.SetFlags(log.Ltime)
+
+	info, err := os.Stat(*rootPath)
+	if os.IsNotExist(err) || ! info.IsDir() {
+			log.Fatal("Invalid root path:", *rootPath)
 	}
 
 	path, _ := filepath.Abs(*rootPath)
-	rootPath = &path
-	fmt.Println("Serving: ", path)
+	log.Println("Serving:", path)
 
 	http.Handle("/list/", handler(ListHandler))
 	http.Handle("/file/", handler(FileHandler))
