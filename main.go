@@ -7,105 +7,77 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"io"
 	"path/filepath"
 )
 
 var rootPath = flag.String("Root Folder", ".", "Root folder to share")
 
-type FileList struct {
-	Path string `json:"path"`
-	More bool   `json:"more"`
-	Children []*File `json:"children"`
-}
+type handler func(http.ResponseWriter, *http.Request) error
 
-func NewFileList(path string) *FileList {
-	response := new(FileList)
-	response.Children = make([]*File, 0)
-
-	return response
-}
-
-func (l *FileList) LoadFrom(dir *os.File) {
-	subDirs, err := dir.Readdir(100)
-
-	if err == io.EOF {
-		l.More = false
-	}
-
-	for _, subDir := range subDirs {
-		l.AddFile(&File{subDir.IsDir(), subDir.Name(), subDir.Size()})
-	}
-}
-
-func (r *FileList) AddFile(o *File) {
-	r.Children = append(r.Children, o)
-}
-
-type File struct {
-	IsDir bool   `json:"isDir"`
-	Name  string `json:"name"`
-	Size  int64  `json:"size"`
-}
-
-func DirsHandler(w http.ResponseWriter, req *http.Request) {
-	// This should not be "*" unless we want everyone to access the API
+func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	path := filepath.Join(*rootPath, req.FormValue("path"))
 
-	fmt.Println("Received dir request for: ", path)
+	if err := fn(w, r); err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+}
+
+func ListHandler(w http.ResponseWriter, r *http.Request) error {
+	path := filepath.Join(*rootPath, r.FormValue("path"))
 
 	dir, err := os.Open(path)
 	if err != nil {
-		return
+		return err
 	}
 
 	dirStat, err := dir.Stat()
 	if err != nil {
-		return
+		return err
+	}
+
+	if ! dirStat.IsDir() {
+		return err
 	}
 
 	response := NewFileList(path)
-	if dirStat.IsDir() {
-		response.LoadFrom(dir)
+	response.LoadFrom(dir)
+
+	bytes, err := json.Marshal(response)
+	if err != nil {
+		return err
 	}
 
-	bytes, _ := json.Marshal(response)
-	w.Write(bytes)
+	if _, err := w.Write(bytes); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func FileHandler(w http.ResponseWriter, req *http.Request) {
-	_, filename := filepath.Split(req.FormValue("path"))
-	// This should not be "*" unless we want everyone to access the API
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/octet-stream")
+func FileHandler(w http.ResponseWriter, r *http.Request) error {
+	path := filepath.Join(*rootPath, r.FormValue("path"))
+
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	fileStat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	if fileStat.IsDir() {
+		return err
+	}
+
+	_, filename := filepath.Split(r.FormValue("path"))
+
 	w.Header().Set("Content-Disposition", fmt.Sprint("attachment; filename=\"", filename, "\""))
 	w.Header().Set("Content-Transfer-Encoding", "binary")
 
-	fmt.Println(*rootPath)
-
-	path := filepath.Join(*rootPath, req.FormValue("path"))
-
-	fmt.Println("Received file request for: ", path)
-
-	dir, err := os.Open(path)
-	if err != nil {
-		fmt.Println("Unable to open file: ", path)
-		return
-	}
-
-	dirStat, err := dir.Stat()
-	if err != nil {
-		fmt.Println("Unable to stat file: ", path)
-		return
-	}
-
-	if dirStat.IsDir() {
-		fmt.Println("Object is file: ", path)
-		return
-	}
-
-	io.Copy(w, dir)
+	http.ServeContent(w, r, filename, fileStat.ModTime(), file)
+	return nil
 }
 
 func main() {
@@ -116,11 +88,12 @@ func main() {
 			fmt.Println("Invalid root path: ", err)
 		}
 	}
+
 	path, _ := filepath.Abs(*rootPath)
 	rootPath = &path
 	fmt.Println("Serving: ", path)
 
-	http.HandleFunc("/dirs/", DirsHandler)
-	http.HandleFunc("/file/", FileHandler)
+	http.Handle("/list/", handler(ListHandler))
+	http.Handle("/file/", handler(FileHandler))
 	log.Fatal(http.ListenAndServe(":5555", nil))
 }
