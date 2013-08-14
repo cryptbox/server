@@ -26,6 +26,8 @@ func (fn handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func ListHandler(w http.ResponseWriter, r *http.Request) error {
 	path := filepath.Join(*rootPath, r.FormValue("path"))
 
+	fmt.Println("Received list request for: ", path)
+
 	dir, err := os.Open(path)
 	if err != nil {
 		return err
@@ -57,6 +59,8 @@ func ListHandler(w http.ResponseWriter, r *http.Request) error {
 
 func FileHandler(w http.ResponseWriter, r *http.Request) error {
 	path := filepath.Join(*rootPath, r.FormValue("path"))
+
+	fmt.Println("Received file request for: ", path)
 
 	file, err := os.Open(path)
 	if err != nil {
